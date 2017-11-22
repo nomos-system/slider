@@ -1,5 +1,5 @@
 <template>
-  <input :class="classObject" type="range" :min="min" v-model="realValue" :max="max" :step="step" :name="name" :orient="vertical && 'vertical'" :disabled="disabled" number>
+  <input @click="click" @mousedown="startInUse" @mouseup="endInUse" @touchstart="startInUse" @touchend="endInUse" @touchcancel="endInUse" :class="classObject" type="range" :min="min" v-model="realValue" :max="max" :step="step" :name="name" :orient="vertical && 'vertical'" :disabled="disabled" number>
 </template>
 
 <script>
@@ -29,26 +29,22 @@ export default {
     // orientation:
     vertical: Boolean
   },
-
   data () {
     return {
-      realValue: this.value
+      realValue: this.value,
+      inUse: false
     }
   },
-
   beforeMount () {
     if (this.max < this.min) {
       throw 'Unexpected range setting: Maximum cannot be less than minimum'
     }
-
     this.update(this.value)
   },
-
   mounted () {
     this.$el.style.setProperty('--low', this.low)
     this.$el.style.setProperty('--high', this.high)
   },
-
   watch: {
     realValue (newVal, oldVal) {
       if (Number(newVal) !== Number(oldVal)) {
@@ -60,9 +56,27 @@ export default {
       this.update(val)
     }
   },
-
   methods: {
+    click(e) {
+      // Hack for cordova, jump to the location
+      if (CORDOVA_BUILD) {
+        var newValue = (e.target.max / e.target.offsetWidth) * e.offsetX
+        newValue = Math.round(newValue / 10) * 10
+        newValue = newValue > this.max ? this.max : newValue
+        newValue = newValue < this.min ? this.min : newValue
+        this.realValue = newValue
+      }
+    },
+    startInUse (e) {
+      this.inUse = true
+    },
+    endInUse (e) {
+      this.inUse = false
+    },
     update (val) {
+      if (this.inUse) {
+        return
+      }
       if (val > this.max) {
         this.realValue = this.max
       } else if (val < this.min) {
